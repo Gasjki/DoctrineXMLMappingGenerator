@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Doctrine XML Mapping Generator</title>
+    <!-- CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss/dist/tailwind.min.css" rel="stylesheet"/>
+    <style>
+        textarea, input[type="text"] {
+            margin: 0.1em;
+            border: 1px #38a89d solid;
+            display: block;
+            padding: 0.375rem 0.75rem;
+            font-size: 1rem;
+            line-height: 1.5;
+            color: #495057;
+            background-color: #fff;
+            background-clip: padding-box;
+            border-radius: 0.25rem;
+            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        }
+
+        label {
+            display: inline-block;
+            margin-bottom: 0.5rem;
+        }
+
+        hr {
+            color: #38a89d;
+            background-color: transparent;
+            height: 2px;
+        }
+    </style>
+</head>
+<body>
+<nav class="flex items-center justify-between flex-wrap bg-teal-dark p-6">
+    <div class="flex items-center flex-no-shrink text-white mr-6">
+        <span class="font-semibold text-xl tracking-tight">Doctrine XML Mapping Generator</span>
+    </div>
+</nav>
+<div class="container mx-auto my-8">
+    <div class="shadow-md py-5">
+        <h2 class="text-center">
+            Doctrine XML Mapping Generator
+        </h2>
+    </div>
+</div>
+<div class="container mx-auto my-10">
+    <div id="application">
+        <div class="shadow-md py-10 px-10">
+            <h2>Entity data</h2>
+            <br/>
+            <class-data></class-data>
+            <hr/>
+            <generator-data></generator-data>
+            <hr/>
+            <field-data></field-data>
+            <!-- Generate XML-->
+            <button type="button"
+                    class="w-full max-w-auto btn bg-teal-dark hover:bg-teal-darker text-white font-bold py-2 px-4 rounded text-center"
+                    @click="generateXML">
+                Generate
+            </button>
+        </div>
+        <div class="shadow-md py-10 px-10 my-10" v-show="hasResult">
+            <div class="w-full max-w-auto">
+                <pre>{{ result }}</pre>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- JS -->
+<script src="https://cdn.jsdelivr.net/npm/vue@2.5.17/dist/vue.js"></script>
+<script>
+    // Class data information.
+    Vue.component('class-data', {
+        template: `
+                <div>
+                    <div class="w-full max-w-auto">
+                        <div class="mb-4">
+                            <label class="block text-grey-darker text-sm font-bold mb-2" for="className">
+                                Class name (path)*
+                            </label>
+                            <input
+                                class="shadow appearance-none border rounded w-full py-2 px-3 text-teal-dark leading-tight focus:outline-none focus:shadow-outline"
+                                id="className"
+                                type="text"
+                                placeholder="e.g.: App\\Entity\\User"
+                                v-model="className"
+                                required
+                            />
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-grey-darker text-sm font-bold mb-2" for="classTableName">
+                                Table name
+                            </label>
+                            <input
+                                class="shadow appearance-none border rounded w-full py-2 px-3 text-teal-dark leading-tight focus:outline-none focus:shadow-outline"
+                                id="classTableName"
+                                type="text"
+                                placeholder="e.g.: users"
+                                v-model="classTableName"
+                            />
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-grey-darker text-sm font-bold mb-2" for="classRepository">
+                                Repository name (path)
+                            </label>
+                            <input
+                                class="shadow appearance-none border rounded w-full py-2 px-3 text-teal-dark leading-tight focus:outline-none focus:shadow-outline"
+                                id="classRepository"
+                                type="text"
+                                placeholder="e.g.: App\\Repository\\UserRepository"
+                                v-model="classRepository"
+                            />
+                        </div>
+                    </div>
+                </div>
+            `,
+        data: function () {
+            return {
+                className: '',
+                classTableName: '',
+                classRepository: '',
+            }
+
+        }
+    });
+
+    // Generator data information.
+    Vue.component('generator-data', {
+        template: `
+            <div>
+                <h2 class="mb-4">Entity generator (Primary key - AUTOINCREMENT)</h2>
+                <div class="w-full max-w-auto">
+                    <div class="flex flex-wrap -mx-3 mb-2">
+                        <div class="w-full md:w-1/4 px-3 mb-6 md:mb-0">
+                            <label class="block text-grey-darker text-xs font-bold mb-2" for="fieldName">
+                                Field name*
+                            </label>
+                            <input
+                                class="appearance-none block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-grey"
+                                id="fieldName"
+                                type="text"
+                                placeholder="e.g.: id"
+                                v-model="fieldName"
+                                required
+                            />
+                        </div>
+                        <div class="w-full md:w-1/4 px-3 mb-6 md:mb-0">
+                            <label class="block text-grey-darker text-xs font-bold mb-2" for="fieldColumnName">
+                                Field column name
+                            </label>
+                            <input
+                                class="appearance-none block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-grey"
+                                id="fieldName"
+                                type="text"
+                                placeholder="e.g.: id"
+                                v-model="fieldColumnName"
+                            />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        `,
+        data: function () {
+            return {
+                fieldName: 'id',
+                fieldColumnName: 'id'
+            }
+        }
+    });
+
+    // Field data information.
+    Vue.component('field-data', {
+        template: `
+            <div>
+                <h2 class="mb-4">Entity properties</h2>
+                <div class="w-full mx-auto mb-6" v-show="showGeneralButtons">
+                    <div class="w-full items-center mx-auto mb-6">
+                        <button type="button" class="btn bg-teal-dark hover:bg-teal-darker rounded px-2 py-2 text-white" @click="addRow(0)">
+                            Add field
+                        </button>
+                    </div>
+                </div>
+                <div v-for="(field, index) in fields">
+                    <div class="w-full max-w-auto">
+                        <div class="flex flex-wrap -mx-3 mb-2">
+                            <div class="w-full md:w-1/4 px-3 mb-6 md:mb-0">
+                                <label class="block text-grey-darker text-xs font-bold mb-2" for="field.fieldName">
+                                    Field name*
+                                </label>
+                                <input
+                                    class="appearance-none block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-grey"
+                                    id="field.fieldName"
+                                    type="text"
+                                    placeholder="e.g.: fullName"
+                                    v-model="field.fieldName"
+                                    required
+                                />
+                        </div>
+                        <div class="w-full md:w-1/4 px-3 mb-6 md:mb-0">
+                            <label class="block text-grey-darker text-xs font-bold mb-2" for="field.fieldType">
+                                Field type
+                            </label>
+                            <div class="relative">
+                                <select
+                                    class="block appearance-none w-full bg-white border border-grey-light hover:border-grey px-4 py-2 pr-8 rounded shadow leading-tight focus:outline-none focus:shadow-outline"
+                                    id="field.fieldType"
+                                    v-model="field.fieldType"
+                                    @change="updateFieldVisibility(index)"
+                                >
+                                    <option v-for="type in types" :value="type.value">{{ type.label }}</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="w-full md:w-1/4 px-3 mb-6 md:mb-0">
+                            <label class="block text-grey-darker text-xs font-bold mb-2" for="field.fieldColumnName">
+                                Column name
+                            </label>
+                            <input
+                                class="appearance-none block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-grey"
+                                id="field.fieldColumnName"
+                                type="text"
+                                placeholder="e.g.: full_name"
+                                v-model="field.fieldColumnName"
+                            />
+                        </div>
+                        <div class="w-full md:w-1/4 px-3 mb-6 md:mb-0">
+                            <label class="block text-grey-darker text-xs font-bold mb-2" for="field.fieldNullable">
+                                Can be null?
+                            </label>
+                            <div class="relative">
+                                <select
+                                    class="block appearance-none w-full bg-white border border-grey-light hover:border-grey px-4 py-2 pr-8 rounded shadow leading-tight focus:outline-none focus:shadow-outline"
+                                    id="field.fieldNullable"
+                                    v-model="field.fieldNullable"
+                                    @change="updateUniqueField(index)"
+                                >
+                                    <option value="0">No</option>
+                                    <option value="1">Yes</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap -mx-3 mb-2">
+                        <div class="w-full md:w-1/4 px-3 mb-6 md:mb-0" v-show="field.showLength">
+                            <label class="block text-grey-darker text-xs font-bold mb-2" for="field.fieldLength">
+                                Length
+                            </label>
+                            <input
+                                class="appearance-none block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-grey"
+                                id="field.fieldLength"
+                                type="text"
+                                placeholder="e.g.: 255"
+                                v-model="field.fieldLength"
+                            />
+                        </div>
+                        <div class="w-full md:w-1/4 px-3 mb-6 md:mb-0" v-show="field.showScaleAndPrecision">
+                            <label class="block text-grey-darker text-xs font-bold mb-2" for="field.fieldPrecision">
+                                Precision
+                            </label>
+                            <input
+                                class="appearance-none block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-grey"
+                                id="field.fieldPrecision"
+                                type="text"
+                                placeholder="e.g.: 5"
+                                v-model="field.fieldPrecision"
+                            />
+                        </div>
+                        <div class="w-full md:w-1/4 px-3 mb-6 md:mb-0" v-show="field.showScaleAndPrecision">
+                            <label class="block text-grey-darker text-xs font-bold mb-2" for="field.fieldScale">
+                                Scale
+                            </label>
+                            <input
+                                class="appearance-none block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-grey"
+                                id="field.fieldScale"
+                                type="text"
+                                placeholder="e.g.: 2"
+                                v-model="field.fieldScale"
+                            />
+                        </div>
+                        <div class="w-full md:w-1/4 px-3 mb-6 md:mb-0" v-show="field.showDefaultValueField">
+                            <label class="block text-grey-darker text-xs font-bold mb-2" for="field.fieldDefaultValue">
+                                Default value
+                            </label>
+                            <input
+                                class="appearance-none block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-grey"
+                                id="field.fieldDefaultValue"
+                                type="text"
+                                placeholder="e.g.: John Doe"
+                                v-model="field.fieldDefaultValue"
+                            />
+                        </div>
+                        <div class="w-full md:w-1/4 px-3 mb-6 md:mb-0" v-show="field.showUniqueField" @change="updateDefaultValueField(index)">
+                            <label class="block text-grey-darker text-xs font-bold mb-2" for="field.fieldUnique">
+                                Is unique?
+                            </label>
+                            <div class="relative">
+                                <select
+                                    class="block appearance-none w-full bg-white border border-grey-light hover:border-grey px-4 py-2 pr-8 rounded shadow leading-tight focus:outline-none focus:shadow-outline"
+                                    id="field.fieldUnique"
+                                    v-model="field.fieldUnique"
+                                >
+                                    <option value="0">No</option>
+                                    <option value="1">Yes</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="w-full md:w-1/4 px-3 mb-6 md:mb-0 mt-6">
+                            <button type="button" class="btn bg-teal-dark hover:bg-teal-darker rounded px-2 py-2 text-white" @click="addRow(index)">
+                                Add field
+                            </button>
+                            <button type="button" class="btn bg-red-dark hover:bg-red-darker rounded px-2 py-2 text-white" @click="removeRow(index)">
+                                Remove field
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        `,
+        data: function () {
+            return {
+                fields: [],
+                types: [
+                    {value: 'string', label: 'string (default)'},
+                    {value: 'integer', label: 'integer'},
+                    {value: 'smallint', label: 'smallint'},
+                    {value: 'bigint', label: 'bigint'},
+                    {value: 'decimal', label: 'decimal'},
+                    {value: 'float', label: 'float'},
+                    {value: 'text', label: 'text'},
+                    {value: 'guid', label: 'guid'},
+                    {value: 'binary', label: 'binary'},
+                    {value: 'blob', label: 'BLOB'},
+                    {value: 'date', label: 'date'},
+                    {value: 'date_immutable', label: 'date immutable'},
+                    {value: 'datetime', label: 'datetime'},
+                    {value: 'datetimetz', label: 'datetimetz'},
+                    {value: 'datetimetz_immutable', label: 'datetimetz immutable'},
+                    {value: 'time', label: 'time'},
+                    {value: 'time_immutable', label: 'time immutable'},
+                    {value: 'dateinterval', label: 'date interval'},
+                    {value: 'array', label: 'array'},
+                    {value: 'simple_array', label: 'simple array'},
+                    {value: 'json', label: 'json'},
+                    {value: 'json_array', label: 'json array'},
+                    {value: 'object', label: 'object'},
+                ],
+            }
+        },
+        methods: {
+            updateFieldVisibility: function (index) {
+                let fieldTypes = [];
+                this.types.forEach(function (type) {
+                    fieldTypes.push(type.value);
+                });
+
+                let row = this.fields[index];
+
+                if (fieldTypes.includes(row.fieldType)) {
+                    switch (row.fieldType) {
+                        case 'string':
+                        case 'text':
+                        case 'guid':
+                            row.showLength = true;
+                            row.showScaleAndPrecision = false;
+                            break;
+                        case 'decimal':
+                        case 'float':
+                            row.showScaleAndPrecision = true;
+                            row.showLength = false;
+                            break;
+                        default:
+                            row.showLength = false;
+                            row.showScaleAndPrecision = false;
+                            break;
+                    }
+                } else {
+                    this.fieldType = 'string';
+                    this.updateFieldVisibility();
+                }
+            },
+            updateUniqueField: function (index) {
+                this.fields[index].showUniqueField = this.fields[index].fieldNullable !== '1';
+            },
+            updateDefaultValueField: function (index) {
+                this.fields[index].showDefaultValueField = this.fields[index].fieldUnique !== '1';
+            },
+            addRow: function (index) {
+                try {
+                    this.fields.splice(index + 1, 0, {
+                        fieldType: 'string',
+                        fieldUnique: false,
+                        fieldNullable: false,
+                        showLength: true,
+                        showScaleAndPrecision: false,
+                        showUniqueField: true,
+                        showDefaultValueField: true
+                    });
+                } catch (e) {
+                    alert('Error! Please let us know you encountered a problem! Post a new issue on our Github!');
+                    console.log(e);
+                }
+            },
+            removeRow: function (index) {
+                this.fields.splice(index, 1);
+            }
+        },
+        computed: {
+            showGeneralButtons: function () {
+                return this.fields.length === 0;
+            }
+        }
+    });
+
+    let app = new Vue({
+        el: '#application',
+        data: {
+            classData: '',
+            result: '',
+            hasResult: false
+        },
+        types: [
+            'string',
+            'integer',
+            'smallint',
+            'bigint',
+            'decimal',
+            'float',
+            'text',
+            'guid',
+            'binary',
+            'blob',
+            'date',
+            'date_immutable',
+            'datetime',
+            'datetimetz',
+            'datetimetz_immutable',
+            'time',
+            'time_immutable',
+            'dateinterval',
+            'array',
+            'simple_array',
+            'json',
+            'json_array',
+            'object'
+        ],
+        methods: {
+            generateXML() {
+                // Header
+                this.result = `<?xml version="1.0" encoding="UTF-8" ?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                  http://doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+                    `;
+                // Class data information.
+                this.result += this.classDataHandler(this.$children);
+
+                // Close XML
+                this.result += `
+</doctrine-mapping>`;
+                this.hasResult = true;
+            },
+            classDataHandler(data) {
+                let classData = data[0];
+                let result = '';
+
+                if (classData.className.trim().length > 0) {
+                    result = `
+<entity name="` + classData.className + `"`;
+
+                    if (classData.classTableName.trim().length > 0) {
+                        result += ' table="' + classData.classTableName + '"';
+                    }
+
+                    if (classData.classRepository.trim().length > 0) {
+                        result += ' repository-class="' + classData.classRepository + '"';
+                    }
+
+                    result += '>';
+                    let stringLength = result.length;
+
+                    result += this.classGeneratorHandler(data);
+                    result += this.classFieldDataHandler(data);
+
+                    // Change closing sign.
+                    if (result.length === stringLength) {
+                        result = result.slice(0, stringLength - 1);
+                        result += ` />`;
+                    } else {
+                        result += `
+</entity>
+                    `;
+                    }
+                }
+
+                return result;
+            },
+            classGeneratorHandler(data) {
+                data = data[1];
+                let result = '';
+
+                if (data.fieldName.trim().length > 0) {
+                    result += `
+    <id name="` + data.fieldName + `" type="integer"`;
+
+                    if (data.fieldColumnName.trim().length > 0) {
+                        result += ' column="' + data.fieldColumnName + '"';
+                    }
+
+                    result += `>
+        <generator strategy="AUTO" />
+    </id>`;
+                }
+
+                return result;
+            },
+            classFieldDataHandler(data) {
+                data = data[2];
+                let result = '';
+
+                data.fields.forEach(function (field) {
+                    if (field.fieldName != null) {
+                        // Check if we have at least one field to avoid bad formatting.
+                        if (result.length === 0) {
+                            result = `
+    `;
+                        }
+
+                        if (field.fieldName.trim().length > 0) {
+                            result += '<field name="' + field.fieldName.trim() + '"';
+
+                            if (field.hasOwnProperty('fieldType') && field.fieldType.trim().length > 0) {
+                                result += ' type="' + field.fieldType + '"';
+                            } else {
+                                result += ' type="string"';
+                            }
+
+                            if (field.hasOwnProperty('fieldColumnName') && field.fieldColumnName.trim().length > 0) {
+                                result += ' column="' + field.fieldColumnName.trim() + '"';
+                            }
+
+                            if (field.hasOwnProperty('fieldLength') && field.fieldType === 'string') {
+                                let value = Math.abs(parseInt(field.fieldLength));
+
+                                if(value > 0) {
+                                    result += ' length="' + value + '"';
+                                }
+                            }
+
+                            if (field.hasOwnProperty('fieldPrecision') && field.fieldType in ['decimal', 'float']) {
+                                result += ' precision="' + Math.abs(parseInt(field.fieldPrecision)) + '"';
+                            }
+
+                            if (field.hasOwnProperty('fieldScale') && field.fieldType in ['decimal', 'float']) {
+                                result += ' scale="' + Math.abs(parseInt(field.fieldScale)) + '"';
+                            }
+
+                            let fieldNull = false;
+                            if (field.hasOwnProperty('fieldNullable')) {
+                                fieldNull = field.fieldNullable !== false;
+                                if (fieldNull) {
+                                    result += ' nullable="' + fieldNull + '"';
+                                }
+                            }
+
+                            let fieldIsUnique = false;
+                            if (field.hasOwnProperty('fieldUnique')) {
+                                let value = field.fieldUnique !== false;
+                                if (!fieldNull && value) {
+                                    result += ' unique="' + value + '"';
+                                    fieldIsUnique = true;
+                                }
+                            }
+
+                            if (field.hasOwnProperty('fieldDefaultValue') && field.fieldDefaultValue.trim().length > 0 && !fieldIsUnique) {
+                                result += `>
+        <options>
+            <option name="default">` + field.fieldDefaultValue + `</option>
+        </options>
+    </field>`;
+                            } else {
+                                result += ' />';
+                            }
+                        }
+                    }
+                });
+
+                return result;
+            }
+        }
+    });
+</script>
+</body>
+</html>
