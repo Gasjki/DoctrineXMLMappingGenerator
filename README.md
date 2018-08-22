@@ -6,6 +6,9 @@
 Because annotation are not recommended anymore starting with PHP 7.x and YAML is not a friendly syntax due indentation, XML becomes the only way to declare database tables based on entities.
 XML is not a complex language to work with, but it can be tricky and discouraging for most new users, but **the idea of this tool is to provide a simple way to generate your mapping.**
 
+# Demo
+For demo, please visit [https://gasjki.github.io](https://gasjki.github.io/DoctrineXMLMappingGenerator/).
+
 # Frequently Asked Questions
 
 > Q: I need to pay to use this tool?<br />
