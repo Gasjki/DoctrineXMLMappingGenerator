@@ -9,6 +9,9 @@
           integrity="sha384-hWVjflwFxL6sNzntih27bfxkr27PmbbK/iSvJ+a4+0owXq79v+lsFkW54bOGbiDQ" crossorigin="anonymous">
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.9.0/styles/default.min.css">
     <style>
+        body {
+            background-color: #F2F2F2;
+        }
         textarea, input[type="text"] {
             margin: 0.1em;
             border: 1px #38a89d solid;
@@ -41,13 +44,6 @@
         <span class="font-semibold text-xl tracking-tight">Doctrine XML Mapping Generator</span>
     </div>
 </nav>
-<div class="container mx-auto my-8">
-    <div class="shadow-md py-5">
-        <h2 class="text-center">
-            Doctrine XML Mapping Generator
-        </h2>
-    </div>
-</div>
 <div class="container mx-auto my-10">
     <div id="application">
         <div class="shadow-md py-10 px-10">
@@ -56,6 +52,8 @@
             <generator-data></generator-data>
             <hr/>
             <field-data></field-data>
+            <hr />
+            <one-to-many></one-to-many>
             <!-- Generate XML-->
             <button type="button"
                     class="w-full max-w-auto btn bg-teal-dark hover:bg-teal-darker text-white font-bold py-2 px-4 rounded text-center"
@@ -65,19 +63,25 @@
         </div>
         <div class="w-full max-w-auto">
             <div class="flex flex-wrap -mx-3 mb-2">
-                <div class="w-full md:w-1/3 px-5 py-4 mb-4 md:mb-0 text-center">
+                <div class="w-full md:w-1/4 px-5 py-4 mb-4 md:mb-0 text-center">
                     <a href="https://github.com/Gasjki/DoctrineXMLMappingGenerator" class="text-teal-dark"
                        style="text-decoration: none">
                         <i class="fab fa-github fa-3x"></i><br/> Follow me
                     </a>
                 </div>
-                <div class="w-full md:w-1/3 px-5 py-4 mb-4 md:mb-0 text-center">
+                <div class="w-full md:w-1/4 px-5 py-4 mb-4 md:mb-0 text-center">
+                    <a href="https://github.com/Gasjki/DoctrineXMLMappingGenerator/wiki/How-To" class="text-teal-dark"
+                       style="text-decoration: none">
+                        <i class="far fa-life-ring fa-3x"></i><br/> Need help?
+                    </a>
+                </div>
+                <div class="w-full md:w-1/4 px-5 py-4 mb-4 md:mb-0 text-center">
                     <a href="https://github.com/Gasjki/DoctrineXMLMappingGenerator/issues" class="text-teal-dark"
                        style="text-decoration: none">
                         <i class="fas fa-bug fa-3x"></i><br/> Found a bug?
                     </a>
                 </div>
-                <div class="w-full md:w-1/3 px-5 py-4 mb-4 md:mb-0 text-center">
+                <div class="w-full md:w-1/4 px-5 py-4 mb-4 md:mb-0 text-center">
                     <a href="https://github.com/Gasjki/DoctrineXMLMappingGenerator/issues" class="text-teal-dark"
                        style="text-decoration: none">
                         <i class="fas fa-pencil-alt fa-3x"></i><br/> Any suggestion?
@@ -137,7 +141,7 @@
                                 class="shadow appearance-none border rounded w-full py-2 px-3 text-teal-dark leading-tight focus:outline-none focus:shadow-outline"
                                 id="className"
                                 type="text"
-                                placeholder="e.g.: App\\Entity\\User"
+                                placeholder="e.g.: App\\Entity\\Category"
                                 v-model="className"
                                 required
                             />
@@ -150,7 +154,7 @@
                                 class="shadow appearance-none border rounded w-full py-2 px-3 text-teal-dark leading-tight focus:outline-none focus:shadow-outline"
                                 id="classTableName"
                                 type="text"
-                                placeholder="e.g.: users"
+                                placeholder="e.g.: categories"
                                 v-model="classTableName"
                             />
                         </div>
@@ -162,7 +166,7 @@
                                 class="shadow appearance-none border rounded w-full py-2 px-3 text-teal-dark leading-tight focus:outline-none focus:shadow-outline"
                                 id="classRepository"
                                 type="text"
-                                placeholder="e.g.: App\\Repository\\UserRepository"
+                                placeholder="e.g.: App\\Repository\\CategoryRepository"
                                 v-model="classRepository"
                             />
                         </div>
@@ -529,8 +533,8 @@
                 try {
                     this.fields.splice(index + 1, 0, {
                         fieldType: 'string',
-                        fieldUnique: false,
-                        fieldNullable: false,
+                        fieldUnique: '0',
+                        fieldNullable: '0',
                         showLength: true,
                         showScaleAndPrecision: false,
                         showUniqueField: true,
@@ -547,6 +551,123 @@
         },
         computed: {
             showGeneralButtons: function () {
+                return this.fields.length === 0;
+            }
+        }
+    });
+
+    // One-To-Many information
+    Vue.component('one-to-many', {
+        template: `
+            <div>
+                <h2 class="mb-4">One-To-Many</h2>
+                <div class="w-full mx-auto mb-6" v-show="showGeneralAddRelation">
+                    <div class="w-full items-center mx-auto mb-6">
+                        <button type="button" class="btn bg-teal-dark hover:bg-teal-darker rounded px-2 py-2 text-white" @click="addRelation(0)">
+                            Add relation
+                        </button>
+                    </div>
+                </div>
+                <div v-for="(field, index) in fields">
+                    <div class="w-full max-w-auto">
+                        <div class="flex flex-wrap -mx-3 mb-2">
+                            <div class="w-full md:w-1/4 px-3 mb-6 md:mb-0">
+                                <label class="block text-grey-darker text-xs font-bold mb-2" for="field.fieldName">
+                                    Field name*
+                                </label>
+                                <input
+                                    class="appearance-none block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-grey"
+                                    id="field.fieldName"
+                                    type="text"
+                                    placeholder="e.g.: product"
+                                    v-model="field.fieldName"
+                                    required
+                                />
+                            </div>
+                            <div class="w-full md:w-1/4 px-3 mb-6 md:mb-0">
+                                <label class="block text-grey-darker text-xs font-bold mb-2" for="field.targetEntity">
+                                    Target entity*
+                                </label>
+                                <input
+                                    class="appearance-none block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-grey"
+                                    id="field.targetEntity"
+                                    type="text"
+                                    placeholder="e.g.: App\\Entity\\Product"
+                                    v-model="field.targetEntity"
+                                    required
+                                />
+                            </div>
+                            <div class="w-full md:w-1/4 px-3 mb-6 md:mb-0">
+                                <label class="block text-grey-darker text-xs font-bold mb-2" for="field.mappedBy">
+                                    Mapped by*
+                                </label>
+                                <input
+                                    class="appearance-none block w-full bg-grey-lighter text-grey-darker border border-grey-lighter rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-grey"
+                                    id="field.mappedBy"
+                                    type="text"
+                                    placeholder="e.g.: category"
+                                    v-model="field.mappedBy"
+                                    required
+                                />
+                            </div>
+                            <div class="w-full md:w-1/4 px-3 mb-6 md:mb-0">
+                                <label class="block text-grey-darker text-xs font-bold mb-2" for="field.fetchType">
+                                    Fetch type
+                                </label>
+                                <div class="relative">
+                                    <select
+                                        class="block appearance-none w-full bg-white border border-grey-light hover:border-grey px-4 py-2 pr-8 rounded shadow leading-tight focus:outline-none focus:shadow-outline"
+                                        id="field.fetchType"
+                                        v-model="field.fetchType"
+                                        required
+                                    >
+                                        <option value="LAZY">LAZY (default)</option>
+                                        <option value="EAGER">EAGER</option>
+                                        <option value="EXTRA_LAZY">EXTRA LAZY</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap -mx-3 mb-2">
+                        <div class="w-full md:w-1/4 px-3 mb-6 md:mb-0 float-right">
+                            <button type="button" class="btn bg-teal-dark hover:bg-teal-darker rounded px-2 py-2 text-white" @click="addRelation(index)">
+                                Add relation
+                            </button>
+                            <button type="button" class="btn bg-red-dark hover:bg-red-darker rounded px-2 py-2 text-white" @click="removeRelation(index)">
+                                Remove relation
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        `,
+        data: function() {
+            return {
+                fields: []
+            }
+        },
+        methods: {
+            addRelation: function (index) {
+                try {
+                    this.fields.splice(index + 1, 0, {
+                        fieldName: '',
+                        targetEntity: '',
+                        mappedBy: '',
+                        fetchType: 'LAZY'
+                    });
+                } catch (e) {
+                    alert('Error! Please let us know you encountered a problem! Post a new issue on our Github!');
+                    console.log(e);
+                }
+            },
+            removeRelation: function (index) {
+                this.fields.splice(index, 1);
+            }
+        },
+        computed: {
+            showGeneralAddRelation: function () {
                 return this.fields.length === 0;
             }
         }
